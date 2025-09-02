@@ -30,8 +30,6 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
-        // We now use the CharacterController's built-in isGrounded property.
-        // It's more reliable and updates automatically after a Move() call.
         if (controller.isGrounded && velocity.y < 0)
         {
             velocity.y = -2f;
@@ -39,7 +37,8 @@ public class PlayerController : MonoBehaviour
 
         // --- 2. MOVEMENT ---
         float x = Input.GetAxis("Horizontal");
-        Vector3 moveDirection = transform.right * x;
+        float z = Input.GetAxis("Vertical");
+        Vector3 moveDirection = transform.right * x + transform.forward * z;
         controller.Move(moveDirection * moveSpeed * Time.deltaTime);
 
         // --- 3. JUMPING ---
@@ -69,8 +68,8 @@ public class PlayerController : MonoBehaviour
         }
         else // Otherwise, we are grounded
         {
-            // Check for horizontal input to determine idle vs. walk
-            if (Mathf.Abs(Input.GetAxis("Horizontal")) > 0.01f)
+            // Check for ANY movement input to determine idle vs. walk
+            if (Mathf.Abs(Input.GetAxis("Horizontal")) > 0.01f || Mathf.Abs(Input.GetAxis("Vertical")) > 0.01f)
             {
                 // State: Walking
                 characterRenderer.material.color = walkColor;

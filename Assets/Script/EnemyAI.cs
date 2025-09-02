@@ -104,13 +104,15 @@ public class EnemyAI_Flip : MonoBehaviour
         if (waypoints.Length == 0) return;
 
         Transform targetWaypoint = waypoints[currentWaypointIndex];
-        Vector3 targetPosition = new Vector3(targetWaypoint.position.x, transform.position.y, transform.position.z);
+        // --- Ubah targetPosition agar musuh bergerak ke X dan Z ---
+        Vector3 targetPosition = new Vector3(targetWaypoint.position.x, transform.position.y, targetWaypoint.position.z);
         transform.position = Vector3.MoveTowards(transform.position, targetPosition, moveSpeed * Time.deltaTime);
 
+        // --- Flip berdasarkan arah X saja (opsional, jika visual flip hanya di X) ---
         if (targetWaypoint.position.x > transform.position.x && !isFacingRight) Flip();
         else if (targetWaypoint.position.x < transform.position.x && isFacingRight) Flip();
 
-        if (Mathf.Abs(transform.position.x - targetWaypoint.position.x) < 0.1f)
+        if (Vector3.Distance(transform.position, targetWaypoint.position) < 0.1f)
         {
             currentWaypointIndex = (currentWaypointIndex + 1) % waypoints.Length;
         }
@@ -129,9 +131,11 @@ public class EnemyAI_Flip : MonoBehaviour
             return;
         }
 
-        Vector3 targetPosition = new Vector3(player.position.x, transform.position.y, transform.position.z);
+        // --- Ubah targetPosition agar musuh mengejar ke X dan Z ---
+        Vector3 targetPosition = new Vector3(player.position.x, transform.position.y, player.position.z);
         transform.position = Vector3.MoveTowards(transform.position, targetPosition, chaseSpeed * Time.deltaTime);
 
+        // --- Flip berdasarkan arah X saja (opsional) ---
         if (player.position.x > transform.position.x && !isFacingRight) Flip();
         else if (player.position.x < transform.position.x && isFacingRight) Flip();
     }

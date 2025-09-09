@@ -1,5 +1,8 @@
 using UnityEngine;
-using TMPro; // Add this line to use TextMeshPro
+using TMPro;
+
+public enum PlayerSuperState { Grounded, Airborne }
+public enum PlayerGroundedSubState { Idle, Walking }
 
 [RequireComponent(typeof(CharacterController))]
 public class PlayerController : MonoBehaviour
@@ -20,7 +23,10 @@ public class PlayerController : MonoBehaviour
     private CharacterController controller;
     private Renderer characterRenderer; // To change the color
     private Vector3 velocity;
-    // We no longer need a separate isGrounded variable.
+
+    // HFSM states
+    private PlayerSuperState superState;
+    private PlayerGroundedSubState groundedSubState;
 
     void Awake()
     {
@@ -28,59 +34,97 @@ public class PlayerController : MonoBehaviour
         characterRenderer = GetComponent<Renderer>(); // Get the Renderer component
     }
 
+    void Start()
+    {
+        SetSuperState(PlayerSuperState.Grounded);
+    }
+
     void Update()
     {
-        if (controller.isGrounded && velocity.y < 0)
+        // --- 1. State Transitions ---
+        if (controller.isGrounded)
         {
-            velocity.y = -2f;
+            if (superState != PlayerSuperState.Grounded)
+                SetSuperState(PlayerSuperState.Grounded);
+        }
+        else
+        {
+            if (superState != PlayerSuperState.Airborne)
+                SetSuperState(PlayerSuperState.Airborne);
         }
 
-        // --- 2. MOVEMENT ---
+        // --- 2. State Behaviors ---
+        switch (superState)
+        {
+            case PlayerSuperState.Grounded:
+                GroundedUpdate();
+                break;
+            case PlayerSuperState.Airborne:
+                AirborneUpdate();
+                break;
+        }
+
+        // --- 3. Gravity ---
+        velocity.y += gravity * Time.deltaTime;
+        controller.Move(velocity * Time.deltaTime);
+    }
+
+    void SetSuperState(PlayerSuperState newState)
+    {
+        superState = newState;
+        if (superState == PlayerSuperState.Grounded)
+        {
+            velocity.y = -2f; // Reset fall speed
+            // Tentukan substate
+            if (Mathf.Abs(Input.GetAxis("Horizontal")) > 0.01f || Mathf.Abs(Input.GetAxis("Vertical")) > 0.01f)
+                groundedSubState = PlayerGroundedSubState.Walking;
+            else
+                groundedSubState = PlayerGroundedSubState.Idle;
+        }
+    }
+
+    void GroundedUpdate()
+    {
         float x = Input.GetAxis("Horizontal");
         float z = Input.GetAxis("Vertical");
         Vector3 moveDirection = transform.right * x + transform.forward * z;
         controller.Move(moveDirection * moveSpeed * Time.deltaTime);
 
-        // --- 3. JUMPING ---
-        if (Input.GetButtonDown("Jump") && controller.isGrounded)
+        // Substate switching
+        if (Mathf.Abs(x) > 0.01f || Mathf.Abs(z) > 0.01f)
+            groundedSubState = PlayerGroundedSubState.Walking;
+        else
+            groundedSubState = PlayerGroundedSubState.Idle;
+
+        // Jump input
+        if (Input.GetKeyDown(KeyCode.Space))
         {
             velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
+            SetSuperState(PlayerSuperState.Airborne);
         }
 
-        // --- 4. APPLY GRAVITY ---
-        velocity.y += gravity * Time.deltaTime;
-        controller.Move(velocity * Time.deltaTime);
-
-        // --- 5. UPDATE VISUALS ---
-        UpdateVisualState();
-    }
-
-    void UpdateVisualState()
-    {
-        // --- UPDATED to use controller.isGrounded ---
-
-        // If we are in the air
-        if (!controller.isGrounded)
+        // Visuals
+        switch (groundedSubState)
         {
-            // State: Jumping / Falling
-            characterRenderer.material.color = jumpColor;
-            if (statusText != null) statusText.text = "Jumping";
-        }
-        else // Otherwise, we are grounded
-        {
-            // Check for ANY movement input to determine idle vs. walk
-            if (Mathf.Abs(Input.GetAxis("Horizontal")) > 0.01f || Mathf.Abs(Input.GetAxis("Vertical")) > 0.01f)
-            {
-                // State: Walking
-                characterRenderer.material.color = walkColor;
-                if (statusText != null) statusText.text = "Walking";
-            }
-            else
-            {
-                // State: Idle
+            case PlayerGroundedSubState.Idle:
                 characterRenderer.material.color = idleColor;
                 if (statusText != null) statusText.text = "Idle";
-            }
+                break;
+            case PlayerGroundedSubState.Walking:
+                characterRenderer.material.color = walkColor;
+                if (statusText != null) statusText.text = "Walking";
+                break;
         }
+    }
+
+    void AirborneUpdate()
+    {
+        float x = Input.GetAxis("Horizontal");
+        float z = Input.GetAxis("Vertical");
+        Vector3 moveDirection = transform.right * x + transform.forward * z;
+        controller.Move(moveDirection * moveSpeed * Time.deltaTime);
+
+        characterRenderer.material.color = jumpColor;
+        if (statusText != null) statusText.text = "Jumping";
     }
 }

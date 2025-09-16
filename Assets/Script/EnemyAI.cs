@@ -76,15 +76,15 @@ public class EnemyAI_Flip : MonoBehaviour
         switch (currentState)
         {
             case EnemyState.PATROL:
-                characterRenderer.material.color = patrolColor;
+                // characterRenderer.material.color = patrolColor; // HAPUS BARIS INI
                 if (statusText != null) statusText.text = "Patrolling";
                 break;
             case EnemyState.CHASE:
-                characterRenderer.material.color = chaseColor;
+                // characterRenderer.material.color = chaseColor; // HAPUS BARIS INI
                 if (statusText != null) statusText.text = "Chasing";
                 break;
             case EnemyState.ATTACK:
-                characterRenderer.material.color = attackColor;
+                // characterRenderer.material.color = attackColor; // HAPUS BARIS INI
                 if (statusText != null) statusText.text = "Attacking!";
                 break;
         }

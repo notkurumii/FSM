@@ -1,181 +1,52 @@
 using UnityEngine;
-using TMPro; // Add this line to use TextMeshPro
+using TMPro;
+using UnityEngine.UI;
 
-// Define the possible states for the enemy
-public enum EnemyState
+public class EnemyAI_BehaviourTree : MonoBehaviour
 {
-    PATROL,
-    CHASE,
-    ATTACK
-}
-
-public class EnemyAI_Flip : MonoBehaviour
-{
-    // --- State Machine ---
-    public EnemyState currentState;
-
-    // --- AI Properties ---
-    public Transform player;
-    public Transform[] waypoints;
+    [Header("AI Properties")]
     public float moveSpeed = 3f;
-    public float chaseSpeed = 5f;
-
-    // --- AI Senses ---
+    public float roamRadius = 8f;
     public float detectionRadius = 10f;
     public float attackRange = 2f;
+    public float attackCooldown = 1.5f;
+
+    [Header("Health")]
+    public int maxHP = 5;
+    public int currentHP;
+    public Image hpBarFill; // Drag UI Image (fill) ke sini di Inspector
 
     [Header("Visuals")]
-    public Color patrolColor = Color.cyan;
-    public Color chaseColor = Color.yellow;
-    public Color attackColor = Color.red;
-    public TextMeshPro statusText; // Assign a TextMeshPro object here
+    public TextMeshPro statusText;
 
-    // --- Private Variables ---
-    private int currentWaypointIndex = 0;
-    private bool isFacingRight = true;
-    private Renderer characterRenderer; // To change the color
-
-    void Start()
+    void Awake()
     {
-        characterRenderer = GetComponent<Renderer>();
-        if (player == null)
-        {
-            Debug.LogError("Player transform is not assigned in the inspector!");
-            return;
-        }
-        
-        SetState(EnemyState.PATROL); // Set the initial state and visuals
+        currentHP = maxHP;
+        UpdateHPBar();
     }
 
     void Update()
     {
-        if (player == null) return;
-
-        // The main logic for each state is now just checking for transitions
-        switch (currentState)
-        {
-            case EnemyState.PATROL:
-                Patrol();
-                break;
-            case EnemyState.CHASE:
-                Chase();
-                break;
-            case EnemyState.ATTACK:
-                Attack();
-                break;
-        }
+        // Enemy diam saja, tidak roaming dan tidak menyerang enemy lain
+        if (statusText) statusText.text = "Idle";
     }
-    
-    // This function now controls all state changes and visual updates
-    void SetState(EnemyState newState)
+
+    public void TakeDamage(int amount)
     {
-        if (currentState == newState) return; // Don't re-enter the same state
-
-        currentState = newState;
-
-        switch (currentState)
+        currentHP -= amount;
+        if (currentHP < 0) currentHP = 0;
+        UpdateHPBar();
+        if (currentHP == 0)
         {
-            case EnemyState.PATROL:
-                // characterRenderer.material.color = patrolColor; // HAPUS BARIS INI
-                if (statusText != null) statusText.text = "Patrolling";
-                break;
-            case EnemyState.CHASE:
-                // characterRenderer.material.color = chaseColor; // HAPUS BARIS INI
-                if (statusText != null) statusText.text = "Chasing";
-                break;
-            case EnemyState.ATTACK:
-                // characterRenderer.material.color = attackColor; // HAPUS BARIS INI
-                if (statusText != null) statusText.text = "Attacking!";
-                break;
+            Destroy(gameObject);
         }
     }
 
-
-    // --- State Behaviors ---
-
-    void Patrol()
+    void UpdateHPBar()
     {
-        if (Vector3.Distance(transform.position, player.position) < detectionRadius)
+        if (hpBarFill != null)
         {
-            SetState(EnemyState.CHASE);
-            return;
+            hpBarFill.fillAmount = (float)currentHP / maxHP;
         }
-
-        if (waypoints.Length == 0) return;
-
-        Transform targetWaypoint = waypoints[currentWaypointIndex];
-        // --- Ubah targetPosition agar musuh bergerak ke X dan Z ---
-        Vector3 targetPosition = new Vector3(targetWaypoint.position.x, transform.position.y, targetWaypoint.position.z);
-        transform.position = Vector3.MoveTowards(transform.position, targetPosition, moveSpeed * Time.deltaTime);
-
-        // --- Flip berdasarkan arah X saja (opsional, jika visual flip hanya di X) ---
-        if (targetWaypoint.position.x > transform.position.x && !isFacingRight) Flip();
-        else if (targetWaypoint.position.x < transform.position.x && isFacingRight) Flip();
-
-        if (Vector3.Distance(transform.position, targetWaypoint.position) < 0.1f)
-        {
-            currentWaypointIndex = (currentWaypointIndex + 1) % waypoints.Length;
-        }
-    }
-
-    void Chase()
-    {
-        if (Vector3.Distance(transform.position, player.position) < attackRange)
-        {
-            SetState(EnemyState.ATTACK);
-            return;
-        }
-        if (Vector3.Distance(transform.position, player.position) > detectionRadius)
-        {
-            SetState(EnemyState.PATROL);
-            return;
-        }
-
-        // --- Ubah targetPosition agar musuh mengejar ke X dan Z ---
-        Vector3 targetPosition = new Vector3(player.position.x, transform.position.y, player.position.z);
-        transform.position = Vector3.MoveTowards(transform.position, targetPosition, chaseSpeed * Time.deltaTime);
-
-        // --- Flip berdasarkan arah X saja (opsional) ---
-        if (player.position.x > transform.position.x && !isFacingRight) Flip();
-        else if (player.position.x < transform.position.x && isFacingRight) Flip();
-    }
-
-    void Attack()
-    {
-        if (Vector3.Distance(transform.position, player.position) > attackRange)
-        {
-            SetState(EnemyState.CHASE);
-            return;
-        }
-
-        if (player.position.x > transform.position.x && !isFacingRight) Flip();
-        else if (player.position.x < transform.position.x && isFacingRight) Flip();
-    }
-
-    // --- THIS FUNCTION HAS BEEN UPDATED ---
-    void Flip()
-    {
-        isFacingRight = !isFacingRight;
-        
-        // Flip the parent (the enemy)
-        Vector3 theScale = transform.localScale;
-        theScale.x *= -1;
-        transform.localScale = theScale;
-
-        // --- NEW: Counter-flip the text to keep it readable ---
-        if (statusText != null)
-        {
-            Vector3 textScale = statusText.transform.localScale;
-            textScale.x *= -1;
-            statusText.transform.localScale = textScale;
-        }
-    }
-
-    void OnDrawGizmosSelected()
-    {
-        Gizmos.color = Color.yellow;
-        Gizmos.DrawWireSphere(transform.position, detectionRadius);
-        Gizmos.color = Color.red;
-        Gizmos.DrawWireSphere(transform.position, attackRange);
     }
 }

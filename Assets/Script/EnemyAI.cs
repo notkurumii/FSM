@@ -25,10 +25,36 @@ public class EnemyAI_BehaviourTree : MonoBehaviour
         UpdateHPBar();
     }
 
+    private PointClickController clickController;
+
+    void Start()
+    {
+        clickController = FindObjectOfType<PointClickController>();
+    }
+
     void Update()
     {
-        // Enemy diam saja, tidak roaming dan tidak menyerang enemy lain
-        if (statusText) statusText.text = "Idle";
+        if (clickController != null && clickController.hasTarget)
+        {
+            // Raycast ke ground untuk dapatkan posisi Y
+            Vector3 moveTarget = clickController.targetPosition;
+            RaycastHit hit;
+            if (Physics.Raycast(moveTarget + Vector3.up * 10f, Vector3.down, out hit, 20f))
+            {
+                moveTarget.y = hit.point.y;
+            }
+            else
+            {
+                moveTarget.y = transform.position.y; // fallback
+            }
+            transform.position = Vector3.MoveTowards(transform.position, moveTarget, moveSpeed * Time.deltaTime);
+            transform.LookAt(new Vector3(moveTarget.x, transform.position.y, moveTarget.z));
+            if (statusText) statusText.text = "Moving to Point";
+        }
+        else
+        {
+            if (statusText) statusText.text = "Idle";
+        }
     }
 
     public void TakeDamage(int amount)
